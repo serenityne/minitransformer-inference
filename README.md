@@ -1,103 +1,163 @@
-# MiniTransformer
+# MiniTransformer Inference Engine
 
-A compact, educational decoder-only Transformer inference engine implemented in PyTorch, with grouped-query attention, RoPE, RMSNorm, a gated MLP, KV-cached decoding, optional experimental Triton kernels, tests, and benchmarks.
+A lightweight, educational Transformer inference engine built with PyTorch and Triton, exploring autoregressive generation, KV caching, and GPU kernel optimization.
 
-> **Status:** research/learning project, not a production inference server. The Triton kernels are standalone experiments and are **not wired into** the default model forward pass. Benchmark numbers must be measured on your own hardware; none are claimed here.
+**Status:** Work in Progress
+
+## Overview
+
+MiniTransformer is a small-scale implementation of a decoder-only Transformer designed to explore the engineering behind large language model inference.
+
+The project focuses on understanding how Transformer components fit together, how autoregressive generation works, and how memory management and GPU kernels affect inference performance.
+
+Rather than building a production serving system, this project prioritizes implementation clarity, correctness, experimentation, and performance analysis.
 
 ## Features
 
-- Decoder-only language model with pre-norm residual blocks
-- Rotary positional embeddings (RoPE)
-- Grouped-query attention (GQA)
-- RMSNorm and SwiGLU-style gated MLP
-- Greedy or nucleus-sampling generation, with and without a KV cache
-- Weight-copy helper for compatible Hugging Face Llama-style models
-- Optional Triton RMSNorm and causal attention kernels
-- Correctness tests and GPU benchmark scripts
+- **Decoder-only Transformer:** Modular implementation of Transformer blocks and model components.
+- **Grouped-Query Attention (GQA):** Supports multiple query heads sharing key-value heads.
+- **Rotary Positional Embeddings (RoPE):** Implements rotary positional encoding for attention.
+- **RMSNorm:** Implements root mean square layer normalization.
+- **Gated MLP:** Implements the feed-forward component of the Transformer.
+- **Autoregressive Generation:** Supports token-by-token text generation.
+- **KV Caching:** Reuses previously computed keys and values during generation.
+- **Hugging Face Weight Loading:** Includes a loader for compatible Llama-style model weights.
+- **Experimental Triton Kernels:** Includes custom implementations of attention and RMSNorm kernels.
+- **Benchmarking:** Includes scripts for investigating inference latency, throughput, and memory usage.
 
-## Install
+## Architecture
 
-Python 3.10+ is recommended. Install a PyTorch build appropriate for your operating system and CUDA setup first; see [PyTorch's installation selector](https://pytorch.org/get-started/locally/). Then, from the repository root:
-
-```bash
-python -m pip install -e .
-```
-
-For GPU kernels and kernel benchmarks:
-
-```bash
-python -m pip install -e '.[kernels,benchmarks]'
-```
-
-For Hugging Face weight-parity tests (which download a model):
-
-```bash
-python -m pip install -e '.[hf]'
-```
-
-## Quick start
-
-```python
-import torch
-from minitransformer import ModelConfig, TransformerLM, generate_cached
-
-config = ModelConfig(
-    vocab_size=512,
-    hidden_size=128,
-    intermediate_size=256,
-    num_hidden_layers=2,
-    num_attention_heads=4,
-    num_key_value_heads=2,
-)
-model = TransformerLM(config).eval()
-prompt = torch.randint(0, config.vocab_size, (1, 8))
-with torch.inference_mode():
-    tokens = generate_cached(model, prompt, max_new_tokens=16)
-print(tokens)
-```
-
-The model is randomly initialized in this example, so generated tokens are not meaningful language. To use a pretrained model, ensure the source model's architecture and configuration match this implementation before calling `load_from_hf_llama`. Tokenizer integration is intentionally left to the caller.
-
-## Run tests
-
-CPU-compatible tests:
-
-```bash
-python -m pytest -m 'not cuda and not network'
-```
-
-GPU kernel tests (requires CUDA and Triton):
-
-```bash
-python -m pytest -m cuda tests/test_kernels.py
-```
-
-The optional Hugging Face parity test is marked `network` because it downloads a checkpoint. Run it explicitly with `python -m pytest -m network tests/test_model.py`.
-
-## Benchmarks
-
-- `python benchmarks/benchmark_suite.py` compares uncached and cached decoding and a `torch.compile` variant. It requires CUDA and can take a while.
-- `python benchmarks/benchmark_kernels.py` compares the Triton attention experiment with PyTorch SDPA and a manual baseline. It requires CUDA + Triton.
-
-Benchmarks use randomly initialized models and synthetic tokens. Treat results as microbenchmarks, not a comparison of language-model quality or production serving systems.
-
-## Important implementation notes
-
-- The default config is intentionally modest in structure but still large enough to require substantial memory. Use a smaller config for CPU or limited VRAM.
-- KV caching avoids recomputing prior key/value projections during autoregressive decoding, but this implementation concatenates cache tensors each step; a preallocated cache can be faster.
-- `load_from_hf_llama` only copies matching named tensors. It does not automatically validate every architectural detail or convert arbitrary Hugging Face model variants.
-- Triton kernel compatibility and performance depend on GPU, CUDA, Triton, and dtype. Validate numerical behavior on the target hardware.
-
-## Layout
+A simplified view of the inference pipeline:
 
 ```text
-minitransformer/
-├── minitransformer/       # model implementation
-│   └── kernels/           # optional Triton experiments
-├── tests/                 # correctness tests
-└── benchmarks/            # GPU benchmark scripts
+Input Tokens
+     |
+     v
+Token Embeddings
+     |
+     v
+Transformer Blocks
+     |
+     +-- RMSNorm
+     +-- Grouped-Query Attention
+     |      +-- Rotary Positional Embeddings
+     |      +-- KV Cache
+     |
+     +-- Residual Connection
+     +-- Gated MLP
+     +-- Residual Connection
+     |
+     v
+Final Normalization
+     |
+     v
+Language Model Head
+     |
+     v
+Next-Token Logits
+     |
+     v
+Autoregressive Generation
 ```
+
+## Technology Stack
+
+- Python
+- PyTorch
+- Triton
+- pytest
+- Hugging Face Transformers for compatible pretrained-model workflows
+
+## Getting Started
+
+Clone the repository:
+
+```bash
+git clone https://github.com/YOUR_USERNAME/minitransformer-inference.git
+cd minitransformer-inference
+```
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+On Windows:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+On Linux or macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Install the project and its declared dependencies:
+
+```bash
+pip install -e .
+```
+
+For development and testing, install any optional dependencies required by the test suite as documented in the project configuration.
+
+## Running Tests
+
+Run the test suite from the repository root:
+
+```bash
+pytest
+```
+
+GPU-specific tests require compatible CUDA, PyTorch, and Triton installations. Some pretrained-model tests may also require additional dependencies and model access.
+
+## Benchmarking
+
+The repository includes a benchmark suite for investigating inference performance.
+
+Run the benchmark using the command documented by the benchmark script and inspect the available configuration options before selecting batch sizes and sequence lengths.
+
+Relevant measurements include:
+
+- Prompt prefill latency
+- Time to first token
+- Decode latency
+- Tokens generated per second
+- Peak GPU memory usage
+
+Benchmark results depend on hardware, software versions, model configuration, sequence length, batch size, and numerical precision.
+
+Performance comparisons are still being developed. No general performance advantage over established inference implementations is claimed at this stage.
+
+## Current Limitations
+
+This is an experimental project, not a production-ready LLM inference runtime.
+
+- Pretrained-weight compatibility and numerical parity require further validation.
+- The custom Triton kernels are experimental and are not yet integrated into the standard model execution path.
+- KV-cache allocation and memory management can be optimized further.
+- Benchmark methodology and performance comparisons are being refined.
+- GPU support depends on the installed hardware and compatible software versions.
+
+## Roadmap
+
+- [ ] Strengthen correctness tests and pretrained-model parity checks.
+- [ ] Improve inference benchmarking and reproducibility.
+- [ ] Implement preallocated KV-cache storage.
+- [ ] Integrate custom Triton kernels into model execution.
+- [ ] Compare manual attention against PyTorch scaled dot-product attention.
+- [ ] Investigate fused operations and quantized inference.
+- [ ] Profile GPU execution and document performance bottlenecks.
+- [ ] Add continuous integration and automated testing.
+
+## Motivation
+
+This project is an exploration of the intersection between deep learning and systems engineering.
+
+The goal is to understand not only how Transformer models work, but also how inference performance is shaped by tensor operations, memory bandwidth, caching strategies, and GPU kernel execution.
 
 ## License
 
-MIT; see `LICENSE`.
+See the repository's `LICENSE` file for licensing information.

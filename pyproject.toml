@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minitransformer-inference"
+version = "0.1.0"
+description = "Educational decoder-only Transformer inference engine with KV caching and optional Triton kernels"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "MiniTransformer contributors" }]
+dependencies = ["torch>=2.1"]
+
+[project.optional-dependencies]
+kernels = ["triton>=2.1; platform_system == 'Linux'"]
+benchmarks = ["matplotlib>=3.7", "triton>=2.1; platform_system == 'Linux'"]
+hf = ["transformers>=4.40", "pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.setuptools.packages.find]
+include = ["minitransformer*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "cuda: requires a CUDA-capable GPU",
+  "network: downloads a model from Hugging Face",
+]

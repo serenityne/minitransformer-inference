@@ -73,7 +73,7 @@ Autoregressive Generation
 Clone the repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/minitransformer-inference.git
+git clone https://github.com/serenityne/minitransformer-inference.git
 cd minitransformer-inference
 ```
 
